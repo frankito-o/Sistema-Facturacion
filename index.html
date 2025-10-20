@@ -37,6 +37,12 @@
         <form id="form-venta">
           <label>Cliente: <select id="venta-cliente"></select></label>
           <label>Fecha: <input type="date" id="venta-fecha"></label>
+          <label>Tipo de Factura:
+            <select id="venta-tipo">
+              <option value="A">Factura A</option>
+              <option value="B" selected>Factura B</option>
+            </select>
+          </label>
           <label>Producto: <select id="venta-producto"></select></label>
           <label>Cantidad: <input type="number" id="venta-cantidad" min="1" value="1"></label>
           <button type="submit">Agregar a la factura</button>
@@ -47,14 +53,18 @@
             <thead><tr><th>Producto</th><th>Precio</th><th>Cant</th><th>Subtotal</th><th></th></tr></thead>
             <tbody></tbody>
           </table>
-          <div class="factura-total">Total: $<span id="factura-total">0.00</span></div>
+          <div class="factura-resumen">
+            <div>Neto Gravado: $<span id="factura-neto">0.00</span></div>
+            <div>IVA (<span id="factura-iva-rate">21%</span>): $<span id="factura-iva">0.00</span></div>
+            <div class="factura-total">Total: $<span id="factura-total">0.00</span></div>
+          </div>
           <button id="guardar-factura">Guardar Factura</button>
         </div>
       </div>
       <hr>
       <h3>Listado de Facturas</h3>
       <table id="tabla-facturas">
-        <thead><tr><th>ID</th><th>Cliente</th><th>Fecha</th><th>Total</th></tr></thead>
+        <thead><tr><th>ID</th><th>Cliente</th><th>Fecha</th><th>Tipo</th><th>Total</th><th>Acciones</th></tr></thead>
         <tbody></tbody>
       </table>
     </section>
@@ -120,6 +130,7 @@
   </main>
 
   <script src="sample_data.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-y2gGMruQPiEhDRbugzuDUFcPRl1BDpRP70dNDO7xjoMnIKh4j/wcgUp3NEPoPFcAckU4iigFsMghvYDn8U86wA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="app.js"></script>
 </body>
 </html>

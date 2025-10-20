@@ -1,8 +1,109 @@
 // app.js - manejo simple del sistema usando localStorage
 (function(){
   const stateKey = 'sistema';
+  const IVA_RATE = 0.21;
+  const IVA_LABEL = `${Math.round(IVA_RATE*100)}%`;
+  const PUNTO_VENTA = '0001';
   function load(){ return JSON.parse(localStorage.getItem(stateKey) || '{}'); }
   function save(s){ localStorage.setItem(stateKey, JSON.stringify(s)); }
+  function roundTwo(n){ return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
+  const currencyFormatter = new Intl.NumberFormat('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  function formatCurrency(n){ return currencyFormatter.format(roundTwo(n)); }
+  function calcularTotales(items, tipo){
+    const neto = roundTwo((items||[]).reduce((acc,it)=> acc + (Number(it.precio)||0) * (Number(it.cantidad)||0), 0));
+    const iva = roundTwo(neto * IVA_RATE);
+    const total = roundTwo(tipo === 'A' ? neto + iva : neto + iva);
+    return {neto, iva, total};
+  }
+  function precioUnitarioParaMostrar(item, tipo){
+    const base = Number(item.precio)||0;
+    return roundTwo(tipo === 'A' ? base : base * (1+IVA_RATE));
+  }
+  function generarCAE(){
+    let code='';
+    for(let i=0;i<14;i++){ code += Math.floor(Math.random()*10); }
+    return code;
+  }
+  function descargarFacturaPDF(venta, cliente){
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      alert('No se pudo cargar la librería para exportar a PDF.');
+      return;
+    }
+    const doc = new window.jspdf.jsPDF({unit:'pt', format:'a4'});
+    let y = 40;
+    const tipo = venta.tipo || 'B';
+    const clienteNombre = (cliente && cliente.nombre) ? cliente.nombre : 'Consumidor Final';
+    doc.setFontSize(16);
+    doc.text(`Factura Tipo ${tipo}`, 40, y);
+    y += 24;
+    doc.setFontSize(11);
+    doc.text(`Punto de Venta: ${venta.puntoVenta || PUNTO_VENTA}`, 40, y);
+    y += 14;
+    doc.text(`CAE: ${venta.cae || 'Pendiente'}`, 40, y);
+    y += 20;
+    doc.text(`Fecha de Emisión: ${venta.fecha}`, 40, y);
+    y += 14;
+    doc.text(`Cliente: ${clienteNombre}`, 40, y);
+    y += 14;
+    if(cliente && cliente.direccion){
+      doc.text(`Domicilio: ${cliente.direccion}`, 40, y);
+      y += 14;
+    }
+    const condicionIVA = tipo === 'A' ? 'Responsable Inscripto' : 'Consumidor Final / Monotributo';
+    doc.text(`Condición frente al IVA: ${condicionIVA}`, 40, y);
+    y += 24;
+    doc.setFontSize(12);
+    doc.text('Detalle de Items', 40, y);
+    y += 16;
+    doc.setFontSize(10);
+    const colProducto = 40;
+    const colCantidad = 320;
+    const colPrecio = 380;
+    const colSubtotal = 470;
+    doc.text('Producto', colProducto, y);
+    doc.text('Cant.', colCantidad, y, {align:'right'});
+    doc.text('P. Unit.', colPrecio, y, {align:'right'});
+    doc.text('Subtotal', colSubtotal, y, {align:'right'});
+    y += 6;
+    doc.line(40, y, 520, y);
+    y += 12;
+    (venta.items||[]).forEach(it=>{
+      const precioUnit = precioUnitarioParaMostrar(it, tipo);
+      const subtotal = roundTwo(precioUnit * (Number(it.cantidad)||0));
+      const cantidadTexto = it.unidad ? `${it.cantidad} ${it.unidad}` : String(it.cantidad);
+      doc.text(String(it.nombre), colProducto, y);
+      doc.text(cantidadTexto, colCantidad, y, {align:'right'});
+      doc.text(`$${formatCurrency(precioUnit)}`, colPrecio, y, {align:'right'});
+      doc.text(`$${formatCurrency(subtotal)}`, colSubtotal, y, {align:'right'});
+      y += 14;
+      if(y > 700){
+        doc.addPage();
+        y = 40;
+      }
+    });
+    if(y > 660){
+      doc.addPage();
+      y = 40;
+    } else {
+      y += 10;
+    }
+    const totalesCalculados = calcularTotales(venta.items||[], tipo);
+    const tieneIVARegistrado = Number.isFinite(venta.iva);
+    const neto = Number.isFinite(venta.neto) ? venta.neto : totalesCalculados.neto;
+    const iva = tieneIVARegistrado ? venta.iva : totalesCalculados.iva;
+    const total = (tieneIVARegistrado && Number.isFinite(venta.total)) ? venta.total : totalesCalculados.total;
+    doc.setFontSize(11);
+    doc.text(`Neto Gravado: $${formatCurrency(neto)}`, colSubtotal, y, {align:'right'});
+    y += 16;
+    doc.text(`IVA (${IVA_LABEL}): $${formatCurrency(iva)}`, colSubtotal, y, {align:'right'});
+    y += 18;
+    doc.setFontSize(13);
+    doc.text(`Total: $${formatCurrency(total)}`, colSubtotal, y, {align:'right'});
+    y += 30;
+    doc.setFontSize(9);
+    doc.text('Documento emitido conforme a la Ley de Comercio de la República Argentina.', 40, y);
+    doc.save(`Factura-${tipo}-${venta.id}.pdf`);
+  }
 
   // UI helpers
   function qs(sel,root=document){return root.querySelector(sel)}
@@ -20,6 +121,18 @@
   // Inicialización de UI y eventos
   function render(){
     const s = load();
+    let needsSave = false;
+    (s.ventas||[]).forEach(v=>{
+      if(!v.tipo){ v.tipo = 'B'; needsSave = true; }
+      const tipoActual = v.tipo || 'B';
+      const totalesAsegurados = calcularTotales(v.items||[], tipoActual);
+      if(!Number.isFinite(v.neto) || Math.abs(v.neto - totalesAsegurados.neto) > 0.009){ v.neto = totalesAsegurados.neto; needsSave = true; }
+      if(!Number.isFinite(v.iva) || Math.abs(v.iva - totalesAsegurados.iva) > 0.009){ v.iva = totalesAsegurados.iva; needsSave = true; }
+      if(!Number.isFinite(v.total) || Math.abs(v.total - totalesAsegurados.total) > 0.009){ v.total = totalesAsegurados.total; needsSave = true; }
+      if(!v.puntoVenta){ v.puntoVenta = PUNTO_VENTA; needsSave = true; }
+      if(!v.cae){ v.cae = generarCAE(); needsSave = true; }
+    });
+    if(needsSave) save(s);
     // Dashboard
     qs('#card-clientes').textContent = (s.clientes||[]).length;
     qs('#card-empleados').textContent = (s.empleados||[]).length;
@@ -42,10 +155,20 @@
     items.forEach(it=>{ const opt=document.createElement('option'); opt.value=it.id; opt.textContent=`${it.nombre}`; compraProducto.appendChild(opt); });
 
     // Tabla facturas
-    const tbFact = qs('#tabla-facturas tbody'); tbFact.innerHTML='';
+    const tbFact = qs('#tabla-facturas tbody'); if(tbFact) tbFact.innerHTML='';
     (s.ventas||[]).forEach(v=>{
-      const tr = document.createElement('tr'); tr.innerHTML=`<td>${v.id}</td><td>${(clientes.find(c=>c.id==v.cliente)||{}).nombre||''}</td><td>${v.fecha}</td><td>$${v.total.toFixed(2)}</td>`;
-      tbFact.appendChild(tr);
+      const cliente = (clientes.find(c=>c.id==v.cliente)||{});
+      const tipo = v.tipo || 'B';
+      const recalculados = calcularTotales(v.items||[], tipo);
+      const tieneIVARegistrado = Number.isFinite(v.iva);
+      const totales = {
+        neto: Number.isFinite(v.neto) ? v.neto : recalculados.neto,
+        iva: tieneIVARegistrado ? v.iva : recalculados.iva,
+        total: (tieneIVARegistrado && Number.isFinite(v.total)) ? v.total : recalculados.total
+      };
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${v.id}</td><td>${cliente.nombre||''}</td><td>${v.fecha}</td><td>${tipo}</td><td>$${formatCurrency(totales.total)}</td><td><button data-id="${v.id}" class="descargar-pdf">Descargar PDF</button></td>`;
+      if(tbFact) tbFact.appendChild(tr);
     });
 
     // Tabla compras
@@ -73,17 +196,21 @@
   // Factura en memoria antes de guardar
   let facturaDraft = [];
   function renderFacturaBorrador(){
-    const s = load();
-    const tbody = qs('#factura-items tbody'); tbody.innerHTML='';
-    let total = 0;
+    const tipo = qs('#venta-tipo') ? qs('#venta-tipo').value : 'B';
+    const tbody = qs('#factura-items tbody'); if(tbody) tbody.innerHTML='';
     facturaDraft.forEach((it,idx)=>{
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${it.nombre}</td><td>$${it.precio}</td><td>${it.cantidad}</td><td>$${(it.precio*it.cantidad).toFixed(2)}</td><td><button data-idx="${idx}" class="quitar">Quitar</button></td>`;
-      tbody.appendChild(tr);
-      total += it.precio*it.cantidad;
+      const precioUnitario = precioUnitarioParaMostrar(it, tipo);
+      const subtotal = roundTwo(precioUnitario * (Number(it.cantidad)||0));
+      tr.innerHTML = `<td>${it.nombre}</td><td>$${formatCurrency(precioUnitario)}</td><td>${it.cantidad}</td><td>$${formatCurrency(subtotal)}</td><td><button data-idx="${idx}" class="quitar">Quitar</button></td>`;
+      if(tbody) tbody.appendChild(tr);
     });
-    qs('#factura-total').textContent = total.toFixed(2);
-    qsa('.quitar').forEach(b=>b.addEventListener('click', e=>{ const i=e.target.dataset.idx; facturaDraft.splice(i,1); renderFacturaBorrador(); }));
+    const totales = calcularTotales(facturaDraft, tipo);
+    if(qs('#factura-neto')) qs('#factura-neto').textContent = formatCurrency(totales.neto);
+    if(qs('#factura-iva')) qs('#factura-iva').textContent = formatCurrency(totales.iva);
+    if(qs('#factura-total')) qs('#factura-total').textContent = formatCurrency(totales.total);
+    if(qs('#factura-iva-rate')) qs('#factura-iva-rate').textContent = IVA_LABEL;
+    qsa('#factura-items .quitar').forEach(b=>b.addEventListener('click', e=>{ const i=e.target.dataset.idx; facturaDraft.splice(i,1); renderFacturaBorrador(); }));
   }
 
   // Eventos: ventas
@@ -99,9 +226,15 @@
     const item = (s.items||[]).find(i=>i.id===prodId);
     if(!item){ alert('Producto no encontrado'); return; }
     if(item.stock < cantidad){ alert('Stock insuficiente'); return; }
-    facturaDraft.push({id:item.id,nombre:item.nombre,precio:item.precio,cantidad});
+    facturaDraft.push({id:item.id,nombre:item.nombre,precio:Number(item.precio),cantidad,unidad:item.unidad});
     renderFacturaBorrador();
   });
+
+  if(qs('#venta-tipo')){
+    qs('#venta-tipo').addEventListener('change', ()=>{
+      renderFacturaBorrador();
+    });
+  }
 
   qs('#guardar-factura').addEventListener('click', ()=>{
     if(facturaDraft.length===0){ alert('Factura vacía'); return; }
@@ -109,8 +242,10 @@
     const id = ((s.ventas||[]).length? (s.ventas[s.ventas.length-1].id+1):1);
     const clienteId = +qs('#venta-cliente').value;
     const fecha = qs('#venta-fecha').value || new Date().toISOString().slice(0,10);
-    const total = facturaDraft.reduce((acc,it)=>acc + it.precio*it.cantidad,0);
-    const venta = {id, cliente:clienteId, fecha, items: facturaDraft, total};
+    const tipoFactura = (qs('#venta-tipo') ? qs('#venta-tipo').value : 'B') || 'B';
+    const totales = calcularTotales(facturaDraft, tipoFactura);
+    const itemsFactura = facturaDraft.map(it=>({id:it.id,nombre:it.nombre,precio:it.precio,cantidad:it.cantidad,unidad:it.unidad}));
+    const venta = {id, cliente:clienteId, fecha, tipo:tipoFactura, items: itemsFactura, neto: totales.neto, iva: totales.iva, total: totales.total, cae: generarCAE(), puntoVenta: PUNTO_VENTA};
     s.ventas = s.ventas || [];
     s.ventas.push(venta);
     // descontar stock
@@ -120,6 +255,20 @@
     render();
     alert('Factura guardada');
   });
+
+  const tablaFacturas = qs('#tabla-facturas');
+  if(tablaFacturas){
+    tablaFacturas.addEventListener('click', e=>{
+      const btn = e.target.closest('.descargar-pdf');
+      if(!btn) return;
+      const ventaId = +btn.dataset.id;
+      const s = load();
+      const venta = (s.ventas||[]).find(v=>v.id===ventaId);
+      if(!venta){ alert('Factura no encontrada'); return; }
+      const cliente = (s.clientes||[]).find(c=>c.id===venta.cliente);
+      descargarFacturaPDF(venta, cliente);
+    });
+  }
 
   // Compras
   qs('#form-compra').addEventListener('submit', e=>{
@@ -197,7 +346,13 @@
     const s = load();
     const since = new Date(); since.setDate(since.getDate()-30);
     const ventas = (s.ventas||[]).filter(v=> new Date(v.fecha) >= since);
-    const out = `Ventas últimos 30 días: ${ventas.length} | Total: $${ventas.reduce((a,b)=>a+b.total,0).toFixed(2)}`;
+    const totalPeriodo = ventas.reduce((acc,v)=>{
+      const tipo = v.tipo || 'B';
+      const totales = calcularTotales(v.items||[], tipo);
+      const totalVigente = Number.isFinite(v.total) && Math.abs(v.total - totales.total) <= 0.009 ? v.total : totales.total;
+      return acc + totalVigente;
+    }, 0);
+    const out = `Ventas últimos 30 días: ${ventas.length} | Total: $${formatCurrency(totalPeriodo)}`;
     qs('#report-output').textContent = out;
   });
   qs('#reporte-inventario').addEventListener('click', ()=>{
