@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sistema de Facturación - Vegetales y Frutas</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Sistema de Facturación - Vegetales y Frutas</h1>
+    <nav>
+      <button data-section="dashboard" class="active">Dashboard</button>
+      <button data-section="ventas">Ventas</button>
+      <button data-section="compras">Compras</button>
+      <button data-section="tesoreria">Tesorería</button>
+      <button data-section="inventario">Inventario</button>
+      <button data-section="contabilidad">Contabilidad</button>
+      <button data-section="reportes">Reportes</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="dashboard" class="section active">
+      <h2>Dashboard</h2>
+      <div class="cards">
+        <div class="card">Clientes: <span id="card-clientes">0</span></div>
+        <div class="card">Empleados: <span id="card-empleados">0</span></div>
+        <div class="card">Inventario Items: <span id="card-inventario">0</span></div>
+        <div class="card">Ventas Hoy: <span id="card-ventas-hoy">0</span></div>
+      </div>
+    </section>
+
+    <section id="ventas" class="section">
+      <h2>Ventas</h2>
+      <div class="panel">
+        <form id="form-venta">
+          <label>Cliente: <select id="venta-cliente"></select></label>
+          <label>Fecha: <input type="date" id="venta-fecha"></label>
+          <label>Producto: <select id="venta-producto"></select></label>
+          <label>Cantidad: <input type="number" id="venta-cantidad" min="1" value="1"></label>
+          <button type="submit">Agregar a la factura</button>
+        </form>
+        <div id="factura" class="factura">
+          <h3>Factura (borrador)</h3>
+          <table id="factura-items">
+            <thead><tr><th>Producto</th><th>Precio</th><th>Cant</th><th>Subtotal</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="factura-total">Total: $<span id="factura-total">0.00</span></div>
+          <button id="guardar-factura">Guardar Factura</button>
+        </div>
+      </div>
+      <hr>
+      <h3>Listado de Facturas</h3>
+      <table id="tabla-facturas">
+        <thead><tr><th>ID</th><th>Cliente</th><th>Fecha</th><th>Total</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="compras" class="section">
+      <h2>Compras</h2>
+      <form id="form-compra">
+        <label>Proveedor: <input id="compra-proveedor"></label>
+        <label>Fecha: <input type="date" id="compra-fecha"></label>
+        <label>Producto: <select id="compra-producto"></select></label>
+        <label>Cantidad: <input type="number" id="compra-cantidad" min="1" value="1"></label>
+        <label>Precio unitario: <input type="number" id="compra-precio" min="0" value="0"></label>
+        <button type="submit">Registrar Compra</button>
+      </form>
+      <h3>Registro de Compras</h3>
+      <table id="tabla-compras"><thead><tr><th>ID</th><th>Proveedor</th><th>Fecha</th><th>Total</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <section id="tesoreria" class="section">
+      <h2>Tesorería</h2>
+      <div>
+        <form id="form-movimiento">
+          <label>Tipo: <select id="movimiento-tipo"><option value="ingreso">Ingreso</option><option value="egreso">Egreso</option></select></label>
+          <label>Fecha: <input type="date" id="movimiento-fecha"></label>
+          <label>Concepto: <input id="movimiento-concepto"></label>
+          <label>Monto: <input type="number" id="movimiento-monto" min="0" value="0"></label>
+          <button type="submit">Registrar</button>
+        </form>
+      </div>
+      <h3>Movimientos</h3>
+      <table id="tabla-movimientos"><thead><tr><th>ID</th><th>Tipo</th><th>Fecha</th><th>Concepto</th><th>Monto</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <section id="inventario" class="section">
+      <h2>Inventario</h2>
+      <button id="btn-crear-item">Crear Item</button>
+      <div id="form-item-container" class="hidden">
+        <form id="form-item">
+          <label>Nombre: <input id="item-nombre"></label>
+          <label>Unidad (kg/unid): <input id="item-unidad"></label>
+          <label>Precio Unitario: <input type="number" id="item-precio" min="0" value="0"></label>
+          <label>Stock: <input type="number" id="item-stock" min="0" value="0"></label>
+          <button type="submit">Guardar Item</button>
+        </form>
+      </div>
+      <h3>Listado de Items</h3>
+      <table id="tabla-items"><thead><tr><th>ID</th><th>Nombre</th><th>Unidad</th><th>Precio</th><th>Stock</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <section id="contabilidad" class="section">
+      <h2>Contabilidad</h2>
+      <div id="balance">Balance: $<span id="conta-balance">0.00</span></div>
+      <h3>Asientos</h3>
+      <table id="tabla-asientos"><thead><tr><th>ID</th><th>Fecha</th><th>Descripcion</th><th>Debe</th><th>Haber</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <section id="reportes" class="section">
+      <h2>Reportes</h2>
+      <button id="reporte-ventas">Ventas (últimos 30 días)</button>
+      <button id="reporte-inventario">Inventario Bajo</button>
+      <div id="report-output"></div>
+    </section>
+  </main>
+
+  <script src="js/sample_data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
