@@ -17,7 +17,10 @@ table{width:100%;border-collapse:collapse;margin-top:8px}
 thead th{background:#eee;padding:8px;text-align:left}
 tbody td{padding:8px;border-top:1px solid #e9ecef}
 .factura{background:#fff;padding:12px;border-radius:6px}
-.factura-total{font-weight:bold;margin-top:8px}
+.factura-resumen{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
+.factura-resumen div{background:#f1f3f5;padding:8px;border-radius:4px;flex:1 1 140px}
+.factura-total{font-weight:bold}
 .hidden{display:none}
+#tabla-facturas tbody button{padding:4px 8px;font-size:12px;background:#2b8f4a;color:#fff;border:none;border-radius:4px}
 #report-output{background:#fff;padding:12px;border-radius:6px;margin-top:12px}
 @media(max-width:800px){.panel{flex-direction:column}}
