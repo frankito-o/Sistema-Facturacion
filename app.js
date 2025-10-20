@@ -92,6 +92,10 @@
     const s = load();
     const prodId = +qs('#venta-producto').value;
     const cantidad = +qs('#venta-cantidad').value;
+    if(!Number.isFinite(cantidad) || cantidad <= 0){
+      alert('Ingrese una cantidad válida mayor que cero');
+      return;
+    }
     const item = (s.items||[]).find(i=>i.id===prodId);
     if(!item){ alert('Producto no encontrado'); return; }
     if(item.stock < cantidad){ alert('Stock insuficiente'); return; }
@@ -123,7 +127,15 @@
     const s = load();
     const prodId = +qs('#compra-producto').value;
     const cantidad = +qs('#compra-cantidad').value;
+    if(!Number.isFinite(cantidad) || cantidad <= 0){
+      alert('Ingrese una cantidad de compra válida mayor que cero');
+      return;
+    }
     const precio = +qs('#compra-precio').value;
+    if(!Number.isFinite(precio) || precio <= 0){
+      alert('Ingrese un precio unitario válido mayor que cero');
+      return;
+    }
     const proveedor = qs('#compra-proveedor').value || 'Proveedor';
     const fecha = qs('#compra-fecha').value || new Date().toISOString().slice(0,10);
     const id = ((s.compras||[]).length? (s.compras[s.compras.length-1].id+1):1);
@@ -147,6 +159,10 @@
     const fecha = qs('#movimiento-fecha').value || new Date().toISOString().slice(0,10);
     const concepto = qs('#movimiento-concepto').value || '';
     const monto = +qs('#movimiento-monto').value;
+    if(!Number.isFinite(monto) || monto <= 0){
+      alert('Ingrese un monto válido mayor que cero');
+      return;
+    }
     const id = ((s.movimientos||[]).length? (s.movimientos[s.movimientos.length-1].id+1):1);
     const m = {id,tipo,fecha,concepto,monto};
     s.movimientos = s.movimientos || [];
